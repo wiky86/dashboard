@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>유비온 디지털교육센터</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="header-title">
+                    <div class="title-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h1>유비온 디지털교육센터</h1>
+                </div>
+                <div class="header-controls">
+                    <button id="refreshBtn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>새로고침</span>
+                    </button>
+                    <button id="settingsBtn" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i>
+                        <span>설정</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <div class="main-layout">
+                <!-- 좌측: 진행 중인 작업 -->
+                <div class="left-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-tasks"></i>
+                            <span>진행 중인 작업</span>
+                        </div>
+                        <div class="card-actions">
+                            <div class="filter-controls">
+                                <select id="categoryFilter" class="select">
+                                    <option value="all">전체 구분</option>
+                                </select>
+                                <select id="deadlineFilter" class="select">
+                                    <option value="all">전체 마감일</option>
+                                    <option value="overdue">지연 (마감일 지남)</option>
+                                    <option value="urgent">긴급 (5일 미만)</option>
+                                    <option value="soon">임박 (10일 미만)</option>
+                                    <option value="normal">보통 (20일 미만)</option>
+                                    <option value="safe">여유 (30일 이상)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="tasks-list" id="activeTasksList">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>데이터를 불러오는 중...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- 우측: 통계 카드 + 완료된 작업 로그 -->
+                <div class="right-panel">
+                    <!-- 상단: 통계 카드 2x2 -->
+                    <div class="stats-grid-compact">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="totalTasks">0</div>
+                                <div class="stat-label">전체 작업</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon completed">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="completedTasks">0</div>
+                                <div class="stat-label">완료된 작업</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon pending">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="pendingTasks">0</div>
+                                <div class="stat-label">진행 중인 작업</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon overdue">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="overdueTasks">0</div>
+                                <div class="stat-label">지연된 작업</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 하단: 완료된 작업 로그 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fas fa-check-circle"></i>
+                                <span>완료된 작업 로그</span>
+                            </div>
+                            <div class="card-actions">
+                                <button id="toggleCompletedLog" class="btn btn-secondary">
+                                    <i class="fas fa-eye"></i>
+                                    <span>로그 보기/숨기기</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="completed-log" id="completedLog" style="display: block;">
+                                <div class="completed-tasks-list" id="completedTasksList">
+                                    <div class="loading">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <p>완료된 작업을 불러오는 중...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 설정 모달 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fas fa-cog"></i>
+                    <span>설정</span>
+                </div>
+                <button class="close" type="button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="sheetRange" class="form-label">시트 범위</label>
+                    <input type="text" id="sheetRange" class="form-input" value="A:D" placeholder="예: A:D">
+                    <small class="form-help">데이터가 있는 열 범위를 지정하세요</small>
+                </div>
+                <div class="form-group">
+                    <label for="refreshInterval" class="form-label">자동 새로고침 (분)</label>
+                    <select id="refreshInterval" class="form-select">
+                        <option value="0">사용 안함</option>
+                        <option value="1">1분</option>
+                        <option value="5" selected>5분</option>
+                        <option value="10">10분</option>
+                        <option value="30">30분</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelSettings" class="btn btn-secondary">취소</button>
+                <button id="saveSettings" class="btn btn-primary">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

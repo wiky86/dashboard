@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>유비온 디지털교육센터</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* 키오스크 모드 스타일 */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .container {
+            max-width: 100vw;
+            margin: 0;
+            padding: 1rem;
+            min-height: 100vh;
+        }
+        
+        /* 헤더 컨트롤 숨기기 */
+        .header-controls {
+            display: none;
+        }
+        
+        /* 설정 모달 숨기기 */
+        #settingsModal {
+            display: none !important;
+        }
+        
+        /* 로그 토글 버튼 숨기기 */
+        #toggleCompletedLog {
+            display: none;
+        }
+        
+        /* 완료된 작업 로그 항상 표시 */
+        .completed-log {
+            display: block !important;
+        }
+        
+        /* 전체화면 모드 */
+        .kiosk-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container kiosk-mode">
+        <header class="header">
+            <div class="header-content">
+                <div class="header-title">
+                    <div class="title-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h1>유비온 디지털교육센터</h1>
+                </div>
+                <div class="header-controls">
+                    <!-- 키오스크 모드에서는 숨김 -->
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">
+                            <i class="fas fa-list"></i>
+                        </div>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="totalTasks">0</div>
+                        <div class="stat-label">전체 작업</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon completed">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="completedTasks">0</div>
+                        <div class="stat-label">완료된 작업</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon pending">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="pendingTasks">0</div>
+                        <div class="stat-label">진행 중인 작업</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon overdue">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="overdueTasks">0</div>
+                        <div class="stat-label">지연된 작업</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-tasks"></i>
+                            <span>진행 중인 작업</span>
+                        </div>
+                        <div class="card-actions">
+                            <div class="filter-controls">
+                                <select id="categoryFilter" class="select">
+                                    <option value="all">전체 구분</option>
+                                </select>
+                                <select id="deadlineFilter" class="select">
+                                    <option value="all">전체 마감일</option>
+                                    <option value="overdue">지연 (마감일 지남)</option>
+                                    <option value="urgent">긴급 (5일 미만)</option>
+                                    <option value="soon">임박 (10일 미만)</option>
+                                    <option value="normal">보통 (20일 미만)</option>
+                                    <option value="safe">여유 (30일 이상)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="tasks-list" id="activeTasksList">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>데이터를 불러오는 중...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-check-circle"></i>
+                            <span>완료된 작업 로그</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="completed-log" id="completedLog" style="display: block;">
+                            <div class="completed-tasks-list" id="completedTasksList">
+                                <div class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>완료된 작업을 불러오는 중...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // 키오스크 모드 전용 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            // 자동 새로고침 간격을 1분으로 설정
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(loadTasks, 1 * 60 * 1000); // 1분마다
+            
+            // 초기 데이터 로드
+            loadTasks();
+            
+            // F11 키로 전체화면 토글 (개발용)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'F11') {
+                    e.preventDefault();
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen();
+                    } else {
+                        document.exitFullscreen();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
