@@ -379,6 +379,35 @@ body {
   gap: 0.75rem;
 }
 
+.task-header.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.task-header.clickable:hover {
+  background-color: hsl(var(--muted) / 0.2);
+  border-radius: var(--radius);
+  padding: 0.25rem;
+  margin: -0.25rem;
+}
+
+.expand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  transition: all 0.2s ease-in-out;
+}
+
+.task-header.clickable:hover .expand-icon {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
 .task-title {
   font-weight: 600;
   color: hsl(var(--foreground));
@@ -414,6 +443,109 @@ body {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+/* 세부 내용 스타일 */
+.task-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border));
+  animation: slideDown 0.3s ease-out;
+}
+
+.task-details-content {
+  background-color: hsl(var(--muted) / 0.3);
+  border-radius: var(--radius);
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.task-details-content h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-details-content h4::before {
+  content: "📋";
+  font-size: 1rem;
+}
+
+.task-details-content p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 미리보기 툴팁 스타일 */
+.task-preview-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+.tooltip-content {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 300px;
+  overflow: hidden;
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.tooltip-header i {
+  color: hsl(var(--primary));
+}
+
+.tooltip-body {
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 마감일 표시 */

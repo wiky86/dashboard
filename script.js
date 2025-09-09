@@ -28,7 +28,7 @@ const elements = {
 // 설정 객체
 const settings = {
     sheetId: '',
-    sheetRange: 'A:D',
+    sheetRange: 'A:E',
     apiKey: '',
     refreshInterval: 5
 };
@@ -186,7 +186,9 @@ async function loadTasks() {
             </div>
         `;
         
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${settings.sheetRange}?key=${apiKey}`;
+        // 시트 범위를 강제로 A:E로 설정
+        const sheetRange = 'A:E';
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetRange}?key=${apiKey}`;
         
         const response = await fetch(url);
         
@@ -199,7 +201,9 @@ async function loadTasks() {
         const data = await response.json();
         
         if (data.values && data.values.length > 1) {
+            console.log('Raw data from Google Sheets:', data.values);
             tasks = parseTasksData(data.values);
+            console.log('Parsed tasks:', tasks);
             updateDashboard();
             showNotification('데이터를 성공적으로 불러왔습니다.', 'success');
         } else {
@@ -224,6 +228,9 @@ function parseTasksData(values) {
     const headers = values[0];
     const rows = values.slice(1);
     
+    console.log('Headers:', headers);
+    console.log('Rows:', rows);
+    
     return rows.map((row, index) => {
         const task = {
             id: index + 1,
@@ -231,8 +238,11 @@ function parseTasksData(values) {
             title: row[1] || '', // 작업명 (B열)
             dueDate: row[2] || '', // 마감일 (C열)
             status: row[3] || '진행 중', // 진행 상태 (D열)
+            details: row[4] || '', // 세부 내용 (E열)
             createdAt: new Date().toISOString()
         };
+        
+        console.log(`Task ${index + 1}:`, task);
         
         // 상태 정규화 - 다양한 상태값 처리
         const statusText = task.status.toLowerCase();
@@ -374,18 +384,45 @@ function renderActiveTasks() {
     }
     
     elements.activeTasksList.innerHTML = filteredTasks.map(task => `
-        <div class="task-item deadline-${task.deadlineStatus}">
-            <div class="task-header">
+        <div class="task-item deadline-${task.deadlineStatus}" data-task-id="${task.id}">
+            <div class="task-header clickable" data-task-id="${task.id}">
                 <div class="task-title">${task.title}</div>
                 <div class="task-category">${task.category}</div>
+                <div class="expand-icon">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
             </div>
             <div class="task-meta">
                 <span class="deadline-indicator deadline-${task.deadlineStatus}"></span>
                 <span class="deadline-text">${getDeadlineText(task.dueDate, task.deadlineStatus)}</span>
                 ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
             </div>
+            <div class="task-details" id="details-${task.id}" style="display: none;">
+                <div class="task-details-content">
+                    <h4>세부 내용</h4>
+                    <p>${task.details || '세부 내용이 없습니다.'}</p>
+                </div>
+            </div>
         </div>
     `).join('');
+    
+    // 이벤트 리스너 추가
+    document.querySelectorAll('.task-header.clickable').forEach(header => {
+        header.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            toggleTaskDetails(taskId);
+        });
+        
+        // 호버 시 미리보기 기능
+        header.addEventListener('mouseenter', function() {
+            const taskId = this.getAttribute('data-task-id');
+            showTaskPreview(taskId);
+        });
+        
+        header.addEventListener('mouseleave', function() {
+            hideTaskPreview();
+        });
+    });
 }
 
 // 완료된 작업 렌더링
@@ -406,10 +443,13 @@ function renderCompletedTasks() {
     completedTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     elements.completedTasksList.innerHTML = completedTasks.map(task => `
-        <div class="completed-task-item">
-            <div class="completed-task-header">
+        <div class="completed-task-item" data-task-id="${task.id}">
+            <div class="completed-task-header clickable" data-task-id="${task.id}">
                 <div class="completed-task-title">${task.title}</div>
                 <div class="completed-task-category">${task.category}</div>
+                <div class="expand-icon">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
             </div>
             <div class="completed-task-meta">
                 <span class="completed-date">
@@ -417,13 +457,114 @@ function renderCompletedTasks() {
                 </span>
                 ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
             </div>
+            <div class="task-details" id="details-${task.id}" style="display: none;">
+                <div class="task-details-content">
+                    <h4>세부 내용</h4>
+                    <p>${task.details || '세부 내용이 없습니다.'}</p>
+                </div>
+            </div>
         </div>
     `).join('');
+    
+    // 완료된 작업에도 이벤트 리스너 추가
+    document.querySelectorAll('.completed-task-header.clickable').forEach(header => {
+        header.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            toggleTaskDetails(taskId);
+        });
+        
+        // 호버 시 미리보기 기능
+        header.addEventListener('mouseenter', function() {
+            const taskId = this.getAttribute('data-task-id');
+            showTaskPreview(taskId);
+        });
+        
+        header.addEventListener('mouseleave', function() {
+            hideTaskPreview();
+        });
+    });
 }
 
 // 필터 적용
 function filterTasks() {
     renderActiveTasks();
+}
+
+// 세부 내용 토글 함수
+function toggleTaskDetails(taskId) {
+    const detailsElement = document.getElementById(`details-${taskId}`);
+    const expandIcon = document.querySelector(`[data-task-id="${taskId}"] .expand-icon i`);
+    
+    if (expandIcon) {
+        const isVisible = detailsElement && detailsElement.style.display !== 'none';
+        
+        if (isVisible) {
+            // 숨기기
+            if (detailsElement) {
+                detailsElement.style.display = 'none';
+            }
+            expandIcon.className = 'fas fa-chevron-down';
+        } else {
+            // 보이기
+            if (detailsElement) {
+                detailsElement.style.display = 'block';
+            }
+            expandIcon.className = 'fas fa-chevron-up';
+        }
+    }
+}
+
+// 호버 시 미리보기 표시
+function showTaskPreview(taskId) {
+    const task = tasks.find(t => t.id == taskId);
+    if (!task || !task.details) return;
+    
+    // 기존 미리보기 제거
+    hideTaskPreview();
+    
+    // 미리보기 툴팁 생성
+    const tooltip = document.createElement('div');
+    tooltip.className = 'task-preview-tooltip';
+    tooltip.id = 'preview-tooltip';
+    
+    // 세부 내용의 일부만 표시 (최대 100자)
+    const previewText = task.details.length > 100 
+        ? task.details.substring(0, 100) + '...' 
+        : task.details;
+    
+    tooltip.innerHTML = `
+        <div class="tooltip-content">
+            <div class="tooltip-header">
+                <i class="fas fa-info-circle"></i>
+                <span>세부 내용 미리보기</span>
+            </div>
+            <div class="tooltip-body">
+                ${previewText}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(tooltip);
+    
+    // 마우스 위치에 툴팁 표시
+    const updateTooltipPosition = (e) => {
+        tooltip.style.left = (e.clientX + 10) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+    };
+    
+    document.addEventListener('mousemove', updateTooltipPosition);
+    tooltip._updatePosition = updateTooltipPosition;
+}
+
+// 미리보기 숨기기
+function hideTaskPreview() {
+    const tooltip = document.getElementById('preview-tooltip');
+    if (tooltip) {
+        if (tooltip._updatePosition) {
+            document.removeEventListener('mousemove', tooltip._updatePosition);
+        }
+        tooltip.remove();
+    }
 }
 
 
