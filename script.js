@@ -261,6 +261,19 @@ function parseTasksData(values) {
     });
 }
 
+// 카테고리별 이미지 반환
+function getCategoryImage(deadlineStatus) {
+    const imageMap = {
+        'safe': '001.png',      // 여유
+        'normal': '002.png',    // 보통
+        'warning': '002.png',   // 보통 (warning도 보통으로 처리)
+        'soon': '003.png',      // 임박
+        'urgent': '004.png',    // 긴급
+        'overdue': '005.png'    // 지연
+    };
+    return imageMap[deadlineStatus] || '002.png'; // 기본값은 보통
+}
+
 // 마감일 상태 계산
 function calculateDeadlineStatus(dueDateString) {
     if (!dueDateString) return 'safe';
@@ -385,22 +398,25 @@ function renderActiveTasks() {
     
     elements.activeTasksList.innerHTML = filteredTasks.map(task => `
         <div class="task-item deadline-${task.deadlineStatus}" data-task-id="${task.id}">
-            <div class="task-header clickable" data-task-id="${task.id}">
-                <div class="task-title">${task.title}</div>
-                <div class="task-category">${task.category}</div>
-                <div class="expand-icon">
-                    <i class="fas fa-chevron-down"></i>
+            <img src="${getCategoryImage(task.deadlineStatus)}" alt="${task.deadlineStatus}" class="task-character">
+            <div class="task-content">
+                <div class="task-header clickable" data-task-id="${task.id}">
+                    <div class="task-title">${task.title}</div>
+                    <div class="task-category">${task.category}</div>
+                    <div class="expand-icon">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
                 </div>
-            </div>
-            <div class="task-meta">
-                <span class="deadline-indicator deadline-${task.deadlineStatus}"></span>
-                <span class="deadline-text">${getDeadlineText(task.dueDate, task.deadlineStatus)}</span>
-                ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
-            </div>
-            <div class="task-details" id="details-${task.id}" style="display: none;">
-                <div class="task-details-content">
-                    <h4>세부 내용</h4>
-                    <p>${task.details || '세부 내용이 없습니다.'}</p>
+                <div class="task-meta">
+                    <span class="deadline-indicator deadline-${task.deadlineStatus}"></span>
+                    <span class="deadline-text">${getDeadlineText(task.dueDate, task.deadlineStatus)}</span>
+                    ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
+                </div>
+                <div class="task-details" id="details-${task.id}" style="display: none;">
+                    <div class="task-details-content">
+                        <h4>세부 내용</h4>
+                        <p>${task.details || '세부 내용이 없습니다.'}</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -444,23 +460,26 @@ function renderCompletedTasks() {
     
     elements.completedTasksList.innerHTML = completedTasks.map(task => `
         <div class="completed-task-item" data-task-id="${task.id}">
-            <div class="completed-task-header clickable" data-task-id="${task.id}">
-                <div class="completed-task-title">${task.title}</div>
-                <div class="completed-task-category">${task.category}</div>
-                <div class="expand-icon">
-                    <i class="fas fa-chevron-down"></i>
+            <img src="${getCategoryImage(task.deadlineStatus)}" alt="${task.deadlineStatus}" class="task-character">
+            <div class="task-content">
+                <div class="completed-task-header clickable" data-task-id="${task.id}">
+                    <div class="completed-task-title">${task.title}</div>
+                    <div class="completed-task-category">${task.category}</div>
+                    <div class="expand-icon">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
                 </div>
-            </div>
-            <div class="completed-task-meta">
-                <span class="completed-date">
-                    <i class="fas fa-check"></i> 완료됨
-                </span>
-                ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
-            </div>
-            <div class="task-details" id="details-${task.id}" style="display: none;">
-                <div class="task-details-content">
-                    <h4>세부 내용</h4>
-                    <p>${task.details || '세부 내용이 없습니다.'}</p>
+                <div class="completed-task-meta">
+                    <span class="completed-date">
+                        <i class="fas fa-check"></i> 완료됨
+                    </span>
+                    ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
+                </div>
+                <div class="task-details" id="details-${task.id}" style="display: none;">
+                    <div class="task-details-content">
+                        <h4>세부 내용</h4>
+                        <p>${task.details || '세부 내용이 없습니다.'}</p>
+                    </div>
                 </div>
             </div>
         </div>
