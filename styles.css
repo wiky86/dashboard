@@ -369,7 +369,13 @@ body {
 .task-item.deadline-normal { border-left-color: hsl(142.1 76.2% 36.3%); }
 .task-item.deadline-warning { border-left-color: hsl(38 92% 50%); }
 .task-item.deadline-soon { border-left-color: hsl(25 95% 53%); }
-.task-item.deadline-urgent { border-left-color: hsl(0 84.2% 60.2%); }
+.task-item.deadline-urgent { 
+  border-left-color: hsl(0 84.2% 60.2%); 
+  animation: urgentPulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+
 .task-item.deadline-overdue { border-left-color: hsl(0 0% 70%); }
 
 .task-header {
@@ -421,6 +427,13 @@ body {
   font-weight: 700;
 }
 
+/* 긴급 작업 제목 강조 */
+.task-item.deadline-urgent .task-title {
+  color: hsl(0 84.2% 60.2%);
+  font-weight: 700;
+  text-shadow: 0 0 10px hsl(0 84.2% 60.2% / 0.5);
+}
+
 .task-character {
   width: 100px;
   height: 100px;
@@ -436,6 +449,11 @@ body {
 .task-character:hover {
   transform: scale(1.05);
   background-color: hsl(var(--muted) / 0.3);
+}
+
+/* 긴급 작업의 캐릭터 애니메이션 */
+.task-item.deadline-urgent .task-character {
+  animation: urgentCharacterBounce 2s ease-in-out infinite;
 }
 
 .task-content {
@@ -517,6 +535,52 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes urgentPulse {
+  0% {
+    background-color: hsl(var(--muted) / 0.3);
+    box-shadow: 0 0 0 0 hsl(0 84.2% 60.2% / 0.8), 0 0 20px hsl(0 84.2% 60.2% / 0.3);
+    border-color: hsl(0 84.2% 60.2%);
+  }
+  25% {
+    background-color: hsl(0 84.2% 60.2% / 0.15);
+    box-shadow: 0 0 0 5px hsl(0 84.2% 60.2% / 0.6), 0 0 30px hsl(0 84.2% 60.2% / 0.5);
+    border-color: hsl(0 84.2% 60.2%);
+  }
+  50% {
+    background-color: hsl(0 84.2% 60.2% / 0.25);
+    box-shadow: 0 0 0 10px hsl(0 84.2% 60.2% / 0.4), 0 0 40px hsl(0 84.2% 60.2% / 0.7);
+    border-color: hsl(0 84.2% 60.2%);
+  }
+  75% {
+    background-color: hsl(0 84.2% 60.2% / 0.15);
+    box-shadow: 0 0 0 5px hsl(0 84.2% 60.2% / 0.6), 0 0 30px hsl(0 84.2% 60.2% / 0.5);
+    border-color: hsl(0 84.2% 60.2%);
+  }
+  100% {
+    background-color: hsl(var(--muted) / 0.3);
+    box-shadow: 0 0 0 0 hsl(0 84.2% 60.2% / 0.8), 0 0 20px hsl(0 84.2% 60.2% / 0.3);
+    border-color: hsl(0 84.2% 60.2%);
+  }
+}
+
+@keyframes urgentCharacterBounce {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  75% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
@@ -636,6 +700,18 @@ body {
 .completed-task-item:hover {
   background-color: hsl(142.1 76.2% 36.3% / 0.15);
   transform: translateY(-1px);
+}
+
+/* 긴급한 완료된 작업도 반짝반짝 효과 */
+.completed-task-item.deadline-urgent {
+  animation: urgentPulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+
+/* 긴급한 완료된 작업의 캐릭터 애니메이션 */
+.completed-task-item.deadline-urgent .task-character {
+  animation: urgentCharacterBounce 2s ease-in-out infinite;
 }
 
 .completed-task-header {
