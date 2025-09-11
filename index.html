@@ -69,9 +69,28 @@
                 </div>
                 </div>
 
-                <!-- 우측: 통계 카드 + 완료된 작업 로그 -->
+                <!-- 우측: 과정 정보 + 통계 카드 + 완료된 작업 로그 -->
                 <div class="right-panel">
-                    <!-- 상단: 통계 카드 2x2 -->
+                    <!-- 상단: 현재 진행 중인 교과목 정보 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fas fa-graduation-cap"></i>
+                                <span>현재 진행 중인 교과목</span>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="course-info-container" id="courseInfoContainer">
+                                <div class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>과정 정보를 불러오는 중...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 중간: 통계 카드 2x2 - 주석처리됨 -->
+                    <!--
                     <div class="stats-grid-compact">
                         <div class="stat-card">
                             <div class="stat-header">
@@ -118,6 +137,7 @@
                             </div>
                         </div>
                     </div>
+                    -->
 
                     <!-- 하단: 완료된 작업 로그 -->
                     <div class="card">
