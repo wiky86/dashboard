@@ -957,16 +957,16 @@ body {
   transform: translateY(-1px);
 }
 
-/* 긴급한 완료된 작업도 반짝반짝 효과 */
+/* 완료된 작업에서는 깜빡임 효과 제거 */
 .completed-task-item.deadline-urgent {
-  animation: urgentPulse 2s ease-in-out infinite;
+  /* 깜빡임 효과 제거 - 완료된 작업은 정적 상태 유지 */
   position: relative;
   z-index: 1;
 }
 
-/* 긴급한 완료된 작업의 캐릭터 애니메이션 */
+/* 완료된 작업의 캐릭터는 애니메이션 없음 */
 .completed-task-item.deadline-urgent .task-character {
-  animation: urgentCharacterBounce 2s ease-in-out infinite;
+  /* 캐릭터 애니메이션 제거 - 완료된 작업은 정적 상태 유지 */
 }
 
 .completed-task-header {
