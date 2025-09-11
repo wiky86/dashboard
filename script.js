@@ -1,16 +1,19 @@
 // 전역 변수
 let tasks = [];
+let courses = [];
 let refreshInterval = null;
 let autoRefreshInterval = null;
 
 // DOM 요소들
 const elements = {
-    totalTasks: document.getElementById('totalTasks'),
-    completedTasks: document.getElementById('completedTasks'),
-    pendingTasks: document.getElementById('pendingTasks'),
-    overdueTasks: document.getElementById('overdueTasks'),
+    // 통계 관련 요소들 - 주석처리됨
+    // totalTasks: document.getElementById('totalTasks'),
+    // completedTasks: document.getElementById('completedTasks'),
+    // pendingTasks: document.getElementById('pendingTasks'),
+    // overdueTasks: document.getElementById('overdueTasks'),
     activeTasksList: document.getElementById('activeTasksList'),
     completedTasksList: document.getElementById('completedTasksList'),
+    courseInfoContainer: document.getElementById('courseInfoContainer'),
     refreshBtn: document.getElementById('refreshBtn'),
     settingsBtn: document.getElementById('settingsBtn'),
     settingsModal: document.getElementById('settingsModal'),
@@ -38,12 +41,16 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     initializeEventListeners();
     loadTasks();
+    loadCourses();
     setupAutoRefresh();
 });
 
 // 이벤트 리스너 초기화
 function initializeEventListeners() {
-    elements.refreshBtn.addEventListener('click', loadTasks);
+    elements.refreshBtn.addEventListener('click', function() {
+        loadTasks();
+        loadCourses();
+    });
     elements.settingsBtn.addEventListener('click', openSettingsModal);
     elements.closeModal.addEventListener('click', closeSettingsModal);
     elements.saveSettings.addEventListener('click', saveSettings);
@@ -153,6 +160,79 @@ async function testApiKeyWithCredentials(sheetId, apiKey) {
     }
 }
 
+// 구글 시트에서 과정 정보 로드
+async function loadCourses() {
+    const sheetId = '1upfeAj22FEoYAgtSckJLQJ-Tg6FWFxU1ea3IdjfhGzM';
+    const apiKey = 'AIzaSyD-zp3ID1MdWeMMQoSMTzHsGcvXZVnNe4k';
+    
+    if (!sheetId || !apiKey) {
+        showNotification('시트 설정을 확인해주세요.', 'error');
+        return;
+    }
+    
+    try {
+        elements.courseInfoContainer.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>과정 정보를 불러오는 중...</p>
+            </div>
+        `;
+        
+        // 과정 정보 시트 범위 (시트2 탭에서 데이터 가져오기)
+        const courseSheetRange = '시트2!A:E';
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${courseSheetRange}?key=${apiKey}`;
+        
+        console.log('Loading courses from:', url);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('과정 정보 API 응답 오류:', response.status, errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.values && data.values.length > 0) {
+            console.log('Raw course data from Google Sheets:', data.values);
+            
+            // 헤더가 있는지 확인 (첫 번째 행이 헤더인 경우)
+            const hasHeader = data.values[0] && 
+                (data.values[0][0] === '과정명' || 
+                 data.values[0][0] === 'Course Name' || 
+                 data.values[0][0].toLowerCase().includes('과정') ||
+                 data.values[0][0].toLowerCase().includes('course'));
+            
+            const dataRows = hasHeader ? data.values.slice(1) : data.values;
+            
+            if (dataRows.length === 0) {
+                throw new Error('과정 정보 시트에 데이터가 없습니다.');
+            }
+            
+            courses = parseCoursesData(dataRows);
+            console.log('Parsed courses:', courses);
+            renderCourseInfo();
+        } else {
+            throw new Error('과정 정보 시트에 데이터가 없습니다.');
+        }
+        
+    } catch (error) {
+        console.error('과정 정보 로드 오류:', error);
+        elements.courseInfoContainer.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>과정 정보를 불러올 수 없습니다.</p>
+                <p style="font-size: 12px; color: #999;">오류: ${error.message}</p>
+                <p style="font-size: 11px; color: #666; margin-top: 0.5rem;">
+                    시트 탭 이름이 '시트2'인지 확인해주세요.<br>
+                    A~E열에 데이터가 있는지 확인해주세요.
+                </p>
+            </div>
+        `;
+    }
+}
+
 // 구글 시트에서 데이터 로드
 async function loadTasks() {
     // 환경 변수 또는 설정에서 자격 증명 가져오기
@@ -221,6 +301,34 @@ async function loadTasks() {
         `;
         showNotification('데이터 로드에 실패했습니다.', 'error');
     }
+}
+
+// 시트 데이터를 과정 객체로 변환
+function parseCoursesData(values) {
+    const headers = values[0];
+    const rows = values.slice(1);
+    
+    console.log('Course Headers:', headers);
+    console.log('Course Rows:', rows);
+    
+    return rows.map((row, index) => {
+        const course = {
+            id: index + 1,
+            courseName: row[0] || '', // 과정명 (A열)
+            subject: row[1] || '', // 교과목 (B열)
+            startDate: row[2] || '', // 시작일 (C열)
+            endDate: row[3] || '', // 종료일 (D열)
+            classTime: row[4] || '' // 수업 시간 (E열)
+        };
+        
+        console.log(`Course ${index + 1}:`, course);
+        
+        // 시작일과 종료일 파싱
+        course.startDateObj = parseDate(course.startDate);
+        course.endDateObj = parseDate(course.endDate);
+        
+        return course;
+    });
 }
 
 // 시트 데이터를 작업 객체로 변환
@@ -311,13 +419,15 @@ function calculateDeadlineStatus(dueDateString) {
 
 // 대시보드 업데이트
 function updateDashboard() {
-    updateStats();
+    // updateStats(); // 통계 업데이트 - 주석처리됨
     updateCategoryFilter();
     renderActiveTasks();
     renderCompletedTasks();
+    renderCourseInfo();
 }
 
-// 통계 업데이트
+// 통계 업데이트 - 주석처리됨
+/*
 function updateStats() {
     const total = tasks.length;
     const completed = tasks.filter(task => task.status === 'completed').length;
@@ -329,6 +439,7 @@ function updateStats() {
     elements.pendingTasks.textContent = pending;
     elements.overdueTasks.textContent = overdue;
 }
+*/
 
 // 카테고리 필터 업데이트
 function updateCategoryFilter() {
@@ -341,6 +452,143 @@ function updateCategoryFilter() {
         option.textContent = category;
         elements.categoryFilter.appendChild(option);
     });
+}
+
+// 과정 정보 렌더링
+function renderCourseInfo() {
+    if (!courses || courses.length === 0) {
+        elements.courseInfoContainer.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-graduation-cap"></i>
+                <p>과정 정보가 없습니다.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // 과정별로 그룹화
+    const coursesByProgram = {};
+    courses.forEach(course => {
+        if (!coursesByProgram[course.courseName]) {
+            coursesByProgram[course.courseName] = [];
+        }
+        coursesByProgram[course.courseName].push(course);
+    });
+    
+    // 각 과정별로 현재 진행 중인 교과목과 다음 교과목 찾기
+    const courseInfo = Object.keys(coursesByProgram).map(courseName => {
+        const courseList = coursesByProgram[courseName];
+        
+        // 시작일 기준으로 정렬
+        courseList.sort((a, b) => {
+            if (!a.startDateObj || !b.startDateObj) return 0;
+            return a.startDateObj - b.startDateObj;
+        });
+        
+        // 현재 진행 중인 교과목들 (오늘 날짜가 시작일 이후이고 종료일 이전)
+        const currentSubjects = courseList.filter(course => 
+            course.startDateObj && course.endDateObj && 
+            course.startDateObj <= today && course.endDateObj >= today
+        );
+        
+        // 진행 예정인 교과목들 (시작일이 오늘 이후)
+        const upcomingSubjects = courseList.filter(course => 
+            course.startDateObj && course.startDateObj > today
+        );
+        
+        // 다음에 진행될 교과목 (가장 가까운 미래 교과목)
+        const nextSubject = upcomingSubjects.length > 0 ? upcomingSubjects[0] : null;
+        
+        // 과정 상태 결정 (진행 중과 예정을 모두 표시)
+        let statusIndicators = [];
+        
+        if (currentSubjects.length > 0) {
+            statusIndicators.push({
+                type: 'active',
+                text: '진행 중',
+                color: 'active'
+            });
+        }
+        
+        if (nextSubject) {
+            statusIndicators.push({
+                type: 'upcoming',
+                text: '예정',
+                color: 'upcoming'
+            });
+        }
+        
+        // 상태가 없으면 완료로 표시
+        if (statusIndicators.length === 0) {
+            statusIndicators.push({
+                type: 'completed',
+                text: '완료',
+                color: 'completed'
+            });
+        }
+        
+        return {
+            courseName,
+            currentSubjects,
+            nextSubject,
+            statusIndicators
+        };
+    });
+    
+    // HTML 생성 (컴팩트 버전)
+    elements.courseInfoContainer.innerHTML = courseInfo.map(info => {
+        return `
+            <div class="course-program compact">
+                <div class="course-header">
+                    <div class="course-name-section">
+                        <div class="course-name">${info.courseName}</div>
+                        <div class="course-status-indicators">
+                            ${info.statusIndicators.map(indicator => `
+                                <div class="course-status-indicator ${indicator.color}">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">${indicator.text}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="course-status-badge ${info.statusIndicators[0].color}">
+                        <i class="fas fa-${info.statusIndicators[0].type === 'active' ? 'play' : info.statusIndicators[0].type === 'upcoming' ? 'clock' : 'check'}"></i>
+                    </div>
+                </div>
+                <div class="course-content">
+                    <div class="current-subjects-compact">
+                        ${info.currentSubjects.map(subject => `
+                            <div class="subject-item-compact current">
+                                <div class="subject-info">
+                                    <div class="subject-main">
+                                        <span class="subject-name">${subject.subject}</span>
+                                        <span class="subject-dates">${formatDate(subject.startDate)} ~ ${formatDate(subject.endDate)}</span>
+                                    </div>
+                                    <span class="subject-time">${subject.classTime}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${info.nextSubject ? `
+                        <div class="next-subjects-compact">
+                            <div class="subject-item-compact next">
+                                <div class="subject-info">
+                                    <div class="subject-main">
+                                        <span class="subject-name">${info.nextSubject.subject}</span>
+                                        <span class="subject-dates">${formatDate(info.nextSubject.startDate)} ~ ${formatDate(info.nextSubject.endDate)}</span>
+                                    </div>
+                                    <span class="subject-time">${info.nextSubject.classTime}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // 진행 중인 작업 렌더링
@@ -459,8 +707,8 @@ function renderCompletedTasks() {
     completedTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     elements.completedTasksList.innerHTML = completedTasks.map(task => `
-        <div class="completed-task-item" data-task-id="${task.id}">
-            <img src="${getCategoryImage(task.deadlineStatus)}" alt="${task.deadlineStatus}" class="task-character">
+        <div class="completed-task-item deadline-${task.deadlineStatus}" data-task-id="${task.id}">
+            <img src="006.png" alt="완료된 작업" class="task-character">
             <div class="task-content">
                 <div class="completed-task-header clickable" data-task-id="${task.id}">
                     <div class="completed-task-title">${task.title}</div>
@@ -646,6 +894,34 @@ function getDeadlineText(dueDate, status) {
     } catch (error) {
         console.warn('날짜 표시 오류:', dueDate, error);
         return '마감일 오류';
+    }
+}
+
+function parseDate(dateString) {
+    if (!dateString) return null;
+    
+    try {
+        // 다양한 날짜 형식 처리
+        let date;
+        
+        // "2025. 09. 22" 형식 처리
+        if (dateString.includes('.')) {
+            const cleanedDate = dateString.replace(/\s+/g, '').replace(/\./g, '-');
+            date = new Date(cleanedDate);
+        } else {
+            date = new Date(dateString);
+        }
+        
+        // 유효한 날짜인지 확인
+        if (isNaN(date.getTime())) {
+            console.warn('유효하지 않은 날짜:', dateString);
+            return null;
+        }
+        
+        return date;
+    } catch (error) {
+        console.warn('날짜 파싱 오류:', dateString, error);
+        return null;
     }
 }
 
