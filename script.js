@@ -1,6 +1,7 @@
 // 전역 변수
 let tasks = [];
 let courses = [];
+let todoItems = [];
 let refreshInterval = null;
 let autoRefreshInterval = null;
 
@@ -13,6 +14,7 @@ const elements = {
     // overdueTasks: document.getElementById('overdueTasks'),
     activeTasksList: document.getElementById('activeTasksList'),
     completedTasksList: document.getElementById('completedTasksList'),
+    todoList: document.getElementById('todoList'),
     courseInfoContainer: document.getElementById('courseInfoContainer'),
     refreshBtn: document.getElementById('refreshBtn'),
     settingsBtn: document.getElementById('settingsBtn'),
@@ -24,6 +26,8 @@ const elements = {
     deadlineFilter: document.getElementById('deadlineFilter'),
     toggleCompletedLog: document.getElementById('toggleCompletedLog'),
     completedLog: document.getElementById('completedLog'),
+    toggleTodoList: document.getElementById('toggleTodoList'),
+    todoLog: document.getElementById('todoLog'),
     sheetRange: document.getElementById('sheetRange'),
     refreshIntervalSelect: document.getElementById('refreshInterval')
 };
@@ -42,6 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     loadTasks();
     loadCourses();
+    loadTodoItems();
     setupAutoRefresh();
 });
 
@@ -50,6 +55,7 @@ function initializeEventListeners() {
     elements.refreshBtn.addEventListener('click', function() {
         loadTasks();
         loadCourses();
+        loadTodoItems();
     });
     elements.settingsBtn.addEventListener('click', openSettingsModal);
     elements.closeModal.addEventListener('click', closeSettingsModal);
@@ -58,6 +64,7 @@ function initializeEventListeners() {
     elements.categoryFilter.addEventListener('change', filterTasks);
     elements.deadlineFilter.addEventListener('change', filterTasks);
     elements.toggleCompletedLog.addEventListener('click', toggleCompletedLog);
+    elements.toggleTodoList.addEventListener('click', toggleTodoList);
     
     // 모달 외부 클릭 시 닫기
     window.addEventListener('click', function(event) {
@@ -136,6 +143,23 @@ function toggleCompletedLog() {
     }
 }
 
+// 투두리스트 토글
+function toggleTodoList() {
+    const isVisible = elements.todoLog.style.display !== 'none';
+    elements.todoLog.style.display = isVisible ? 'none' : 'block';
+    
+    const icon = elements.toggleTodoList.querySelector('i');
+    const text = elements.toggleTodoList.querySelector('span') || elements.toggleTodoList.childNodes[1];
+    
+    if (isVisible) {
+        icon.className = 'fas fa-eye-slash';
+        if (text) text.textContent = ' 할 일 숨기기';
+    } else {
+        icon.className = 'fas fa-eye';
+        if (text) text.textContent = ' 할 일 보기';
+    }
+}
+
 // API 키 테스트 함수 (자격 증명 매개변수 사용)
 async function testApiKeyWithCredentials(sheetId, apiKey) {
     if (!sheetId || !apiKey) {
@@ -157,6 +181,98 @@ async function testApiKeyWithCredentials(sheetId, apiKey) {
     } catch (error) {
         console.error('API 키 테스트 오류:', error);
         return false;
+    }
+}
+
+// 구글 시트에서 투두리스트 로드
+async function loadTodoItems() {
+    const sheetId = '1upfeAj22FEoYAgtSckJLQJ-Tg6FWFxU1ea3IdjfhGzM';
+    const apiKey = 'AIzaSyD-zp3ID1MdWeMMQoSMTzHsGcvXZVnNe4k';
+    
+    if (!sheetId || !apiKey) {
+        showNotification('시트 설정을 확인해주세요.', 'error');
+        return;
+    }
+    
+    try {
+        elements.todoList.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>할 일을 불러오는 중...</p>
+            </div>
+        `;
+        
+        // 투두리스트 시트 범위 (시트3 탭에서 데이터 가져오기)
+        const todoSheetRange = '시트3!A:B';
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${todoSheetRange}?key=${apiKey}`;
+        
+        console.log('Loading todo items from:', url);
+        console.log('Sheet ID:', sheetId);
+        console.log('API Key:', apiKey ? 'Present' : 'Missing');
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('투두리스트 API 응답 오류:', response.status, errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.values && data.values.length > 0) {
+            console.log('Raw todo data from Google Sheets:', data.values);
+            
+            // 헤더가 있는지 확인 (첫 번째 행이 헤더인 경우)
+            const hasHeader = data.values[0] && 
+                (data.values[0][0] === '날짜' || 
+                 data.values[0][0] === 'Date' || 
+                 data.values[0][0].toLowerCase().includes('날짜') ||
+                 data.values[0][0].toLowerCase().includes('date') ||
+                 data.values[0][1] === '투두리스트' ||
+                 data.values[0][1] === 'Todo' ||
+                 data.values[0][1].toLowerCase().includes('투두') ||
+                 data.values[0][1].toLowerCase().includes('todo'));
+            
+            const dataRows = hasHeader ? data.values.slice(1) : data.values;
+            
+            console.log('Has header:', hasHeader);
+            console.log('Data rows:', dataRows);
+            
+            // 빈 행 필터링
+            const filteredDataRows = dataRows.filter(row => 
+                row && row.length > 0 && (row[0] || row[1])
+            );
+            
+            if (filteredDataRows.length === 0) {
+                throw new Error('투두리스트 시트에 유효한 데이터가 없습니다.');
+            }
+            
+            console.log('Filtered data rows:', filteredDataRows);
+            
+            todoItems = parseTodoData(filteredDataRows);
+            console.log('Parsed todo items:', todoItems);
+            renderTodoItems();
+        } else {
+            throw new Error('투두리스트 시트에 데이터가 없습니다.');
+        }
+        
+    } catch (error) {
+        console.error('투두리스트 로드 오류:', error);
+        elements.todoList.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>할 일을 불러올 수 없습니다.</p>
+                <p style="font-size: 12px; color: #999;">오류: ${error.message}</p>
+                <p style="font-size: 11px; color: #666; margin-top: 0.5rem;">
+                    확인사항:<br>
+                    • 시트 탭 이름이 '시트3'인지 확인<br>
+                    • A1 셀에 '날짜', B1 셀에 '투두리스트' 헤더가 있는지 확인<br>
+                    • A열에 날짜, B열에 할 일 내용이 입력되어 있는지 확인<br>
+                    • 브라우저 개발자 도구 콘솔에서 자세한 오류 확인
+                </p>
+            </div>
+        `;
     }
 }
 
@@ -303,6 +419,27 @@ async function loadTasks() {
     }
 }
 
+// 시트 데이터를 투두리스트 객체로 변환
+function parseTodoData(values) {
+    console.log('Todo data rows:', values);
+    
+    return values.map((row, index) => {
+        const todoItem = {
+            id: index + 1,
+            date: row[0] || '', // 날짜 (A열)
+            content: row[1] || '', // 할 일 내용 (B열)
+            createdAt: new Date().toISOString()
+        };
+        
+        console.log(`Todo ${index + 1}:`, todoItem);
+        
+        // 날짜 파싱
+        todoItem.dateObj = parseDate(todoItem.date);
+        
+        return todoItem;
+    });
+}
+
 // 시트 데이터를 과정 객체로 변환
 function parseCoursesData(values) {
     const headers = values[0];
@@ -424,6 +561,7 @@ function updateDashboard() {
     renderActiveTasks();
     renderCompletedTasks();
     renderCourseInfo();
+    renderTodoItems();
 }
 
 // 통계 업데이트 - 주석처리됨
@@ -650,6 +788,7 @@ function renderActiveTasks() {
             <div class="task-content">
                 <div class="task-header clickable" data-task-id="${task.id}">
                     <div class="task-title">${task.title}</div>
+                    <div class="task-deadline-text deadline-${task.deadlineStatus}">${getDeadlineText(task.dueDate, task.deadlineStatus)}</div>
                     <div class="task-category">${task.category}</div>
                     <div class="expand-icon">
                         <i class="fas fa-chevron-down"></i>
@@ -657,7 +796,6 @@ function renderActiveTasks() {
                 </div>
                 <div class="task-meta">
                     <span class="deadline-indicator deadline-${task.deadlineStatus}"></span>
-                    <span class="deadline-text">${getDeadlineText(task.dueDate, task.deadlineStatus)}</span>
                     ${task.dueDate ? `<span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>` : ''}
                 </div>
                 <div class="task-details" id="details-${task.id}" style="display: none;">
@@ -687,6 +825,90 @@ function renderActiveTasks() {
             hideTaskPreview();
         });
     });
+}
+
+// 투두리스트 렌더링
+function renderTodoItems() {
+    if (!todoItems || todoItems.length === 0) {
+        elements.todoList.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-list-check"></i>
+                <p>할 일이 없습니다.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // 오늘과 내일 할 일 필터링
+    const todayTodos = todoItems.filter(todo => {
+        if (!todo.dateObj) return false;
+        const todoDate = new Date(todo.dateObj);
+        todoDate.setHours(0, 0, 0, 0);
+        return todoDate.getTime() === today.getTime();
+    });
+    
+    const tomorrowTodos = todoItems.filter(todo => {
+        if (!todo.dateObj) return false;
+        const todoDate = new Date(todo.dateObj);
+        todoDate.setHours(0, 0, 0, 0);
+        return todoDate.getTime() === tomorrow.getTime();
+    });
+    
+    if (todayTodos.length === 0 && tomorrowTodos.length === 0) {
+        elements.todoList.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-calendar-check"></i>
+                <p>오늘과 내일 할 일이 없습니다.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    elements.todoList.innerHTML = `
+        <div class="todo-sections">
+            ${todayTodos.length > 0 ? `
+                <div class="todo-section">
+                    <div class="todo-section-header">
+                        <i class="fas fa-calendar-day"></i>
+                        <span>오늘 할 일 (${todayTodos.length}개)</span>
+                    </div>
+                    <div class="todo-items">
+                        ${todayTodos.map(todo => `
+                            <div class="todo-item today">
+                                <div class="todo-content">
+                                    <div class="todo-text">${todo.content}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            ${tomorrowTodos.length > 0 ? `
+                <div class="todo-section">
+                    <div class="todo-section-header">
+                        <i class="fas fa-calendar-plus"></i>
+                        <span>내일 할 일 (${tomorrowTodos.length}개)</span>
+                    </div>
+                    <div class="todo-items">
+                        ${tomorrowTodos.map(todo => `
+                            <div class="todo-item tomorrow">
+                                <div class="todo-content">
+                                    <div class="todo-text">${todo.content}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // 완료된 작업 렌더링
@@ -866,7 +1088,7 @@ function getDaysUntilDeadline(dueDateString) {
 }
 
 function getDeadlineText(dueDate, status) {
-    if (!dueDate) return '마감일 없음';
+    if (!dueDate) return 'D-?';
     
     try {
         // 다양한 날짜 형식 처리
@@ -887,13 +1109,13 @@ function getDeadlineText(dueDate, status) {
         const diffTime = dueDateObj - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        if (diffDays < 0) return `${Math.abs(diffDays)}일 지연`;
-        if (diffDays === 0) return '오늘 마감';
-        if (diffDays === 1) return '내일 마감';
-        return `${diffDays}일 남음`;
+        if (diffDays < 0) return `D+${Math.abs(diffDays)}`;
+        if (diffDays === 0) return 'D-Day';
+        if (diffDays === 1) return 'D-1';
+        return `D-${diffDays}`;
     } catch (error) {
         console.warn('날짜 표시 오류:', dueDate, error);
-        return '마감일 오류';
+        return 'D-?';
     }
 }
 
