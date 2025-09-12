@@ -280,6 +280,12 @@ body {
   flex: none;
 }
 
+/* 투두리스트 카드 높이 제한 */
+.card:has(.todo-list) {
+  height: 400px;
+  flex: none;
+}
+
 /* 완료된 작업 로그 카드 높이 제한 */
 .card:has(.completed-tasks-list) {
   height: 600px;
@@ -313,6 +319,30 @@ body {
 }
 
 .card:has(.course-info-container) .card-content::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* 투두리스트 카드 콘텐츠 스크롤 */
+.card:has(.todo-list) .card-content {
+  overflow-y: auto;
+  padding-right: 1rem;
+}
+
+.card:has(.todo-list) .card-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card:has(.todo-list) .card-content::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.2);
+  border-radius: 3px;
+}
+
+.card:has(.todo-list) .card-content::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.card:has(.todo-list) .card-content::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
@@ -494,6 +524,27 @@ body {
   color: hsl(var(--foreground));
   font-size: 1.875rem;
   flex: 1;
+}
+
+.task-deadline-text {
+  font-weight: 600;
+  font-size: 1.875rem;
+  margin: 0 0.5rem;
+  white-space: nowrap;
+}
+
+/* D-Day 텍스트 색상 설정 */
+.task-deadline-text.deadline-safe { color: hsl(221.2 83.2% 53.3%); }
+.task-deadline-text.deadline-normal { color: hsl(142.1 76.2% 36.3%); }
+.task-deadline-text.deadline-warning { color: hsl(38 92% 50%); }
+.task-deadline-text.deadline-soon { color: hsl(25 95% 53%); }
+.task-deadline-text.deadline-urgent { 
+  color: hsl(0 84.2% 60.2%); 
+  text-shadow: 0 0 10px hsl(0 84.2% 60.2% / 0.5);
+}
+.task-deadline-text.deadline-overdue { 
+  color: hsl(0 84.2% 60.2%); 
+  font-weight: 700;
 }
 
 /* 지연된 작업 제목 빨간색 표시 */
@@ -927,6 +978,79 @@ body {
   font-size: 0.7rem;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
+}
+
+/* 투두리스트 */
+.todo-log {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.todo-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.todo-section {
+  background-color: hsl(var(--muted) / 0.1);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.todo-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.todo-section-header i {
+  color: hsl(var(--primary));
+}
+
+.todo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.todo-item {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 0.25rem);
+  padding: 0.75rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.todo-item:hover {
+  background-color: hsl(var(--muted) / 0.2);
+  transform: translateY(-1px);
+}
+
+.todo-item.today {
+  border-left: 4px solid hsl(142.1 76.2% 36.3%);
+}
+
+.todo-item.tomorrow {
+  border-left: 4px solid hsl(38 92% 50%);
+}
+
+.todo-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.todo-text {
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 /* 완료된 작업 로그 */
