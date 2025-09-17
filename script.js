@@ -124,6 +124,9 @@ function setupAutoRefresh() {
         }
         refreshInterval = setInterval(loadTasks, settings.refreshInterval * 60 * 1000);
     }
+    
+    // 1분마다 일정 체크 (30분 미만 알림용)
+    setInterval(checkAllUpcomingTasks, 60 * 1000);
 }
 
 // 완료된 작업 로그 토글
@@ -202,8 +205,8 @@ async function loadTodoItems() {
             </div>
         `;
         
-        // 투두리스트 시트 범위 (시트3 탭에서 데이터 가져오기)
-        const todoSheetRange = '시트3!A:B';
+        // 투두리스트 시트 범위 (시트3 탭에서 데이터 가져오기) - 시간 컬럼 추가
+        const todoSheetRange = '시트3!A:C';
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${todoSheetRange}?key=${apiKey}`;
         
         console.log('Loading todo items from:', url);
@@ -428,6 +431,7 @@ function parseTodoData(values) {
             id: index + 1,
             date: row[0] || '', // 날짜 (A열)
             content: row[1] || '', // 할 일 내용 (B열)
+            time: row[2] || '', // 시간 (C열)
             createdAt: new Date().toISOString()
         };
         
@@ -435,6 +439,9 @@ function parseTodoData(values) {
         
         // 날짜 파싱
         todoItem.dateObj = parseDate(todoItem.date);
+        
+        // 시간 파싱
+        todoItem.timeObj = parseTime(todoItem.time);
         
         return todoItem;
     });
@@ -860,6 +867,9 @@ function renderTodoItems() {
         return todoDate.getTime() === tomorrow.getTime();
     });
     
+    // 30분 미만으로 남은 일정 체크
+    checkUpcomingTasks(todayTodos);
+    
     if (todayTodos.length === 0 && tomorrowTodos.length === 0) {
         elements.todoList.innerHTML = `
             <div class="loading">
@@ -880,9 +890,10 @@ function renderTodoItems() {
                     </div>
                     <div class="todo-items">
                         ${todayTodos.map(todo => `
-                            <div class="todo-item today">
+                            <div class="todo-item today ${isTaskUrgent(todo) ? 'urgent' : ''}">
                                 <div class="todo-content">
                                     <div class="todo-text">${todo.content}</div>
+                                    ${todo.time ? `<div class="todo-time">${formatTime(todo.time)}</div>` : ''}
                                 </div>
                             </div>
                         `).join('')}
@@ -901,6 +912,7 @@ function renderTodoItems() {
                             <div class="todo-item tomorrow">
                                 <div class="todo-content">
                                     <div class="todo-text">${todo.content}</div>
+                                    ${todo.time ? `<div class="todo-time">${formatTime(todo.time)}</div>` : ''}
                                 </div>
                             </div>
                         `).join('')}
@@ -1147,6 +1159,54 @@ function parseDate(dateString) {
     }
 }
 
+function parseTime(timeString) {
+    if (!timeString) return null;
+    
+    try {
+        // 다양한 시간 형식 처리
+        let time;
+        
+        // "14:30", "14:30:00", "2:30 PM" 등 형식 처리
+        if (timeString.includes(':')) {
+            const timeParts = timeString.split(':');
+            if (timeParts.length >= 2) {
+                const hours = parseInt(timeParts[0]);
+                const minutes = parseInt(timeParts[1]);
+                
+                if (!isNaN(hours) && !isNaN(minutes) && hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+                    time = new Date();
+                    time.setHours(hours, minutes, 0, 0);
+                    return time;
+                }
+            }
+        }
+        
+        // "2:30 PM" 형식 처리
+        const pmMatch = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (pmMatch) {
+            let hours = parseInt(pmMatch[1]);
+            const minutes = parseInt(pmMatch[2]);
+            const ampm = pmMatch[3].toUpperCase();
+            
+            if (ampm === 'PM' && hours !== 12) {
+                hours += 12;
+            } else if (ampm === 'AM' && hours === 12) {
+                hours = 0;
+            }
+            
+            time = new Date();
+            time.setHours(hours, minutes, 0, 0);
+            return time;
+        }
+        
+        console.warn('유효하지 않은 시간 형식:', timeString);
+        return null;
+    } catch (error) {
+        console.warn('시간 파싱 오류:', timeString, error);
+        return null;
+    }
+}
+
 function formatDate(dateString) {
     try {
         // 다양한 날짜 형식 처리
@@ -1168,6 +1228,22 @@ function formatDate(dateString) {
     } catch (error) {
         console.warn('날짜 포맷 오류:', dateString, error);
         return dateString;
+    }
+}
+
+function formatTime(timeString) {
+    try {
+        const time = parseTime(timeString);
+        if (!time) return timeString;
+        
+        return time.toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    } catch (error) {
+        console.warn('시간 포맷 오류:', timeString, error);
+        return timeString;
     }
 }
 
@@ -1208,6 +1284,135 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// 30분 미만으로 남은 일정 체크 함수
+function checkUpcomingTasks(todayTodos) {
+    const now = new Date();
+    const urgentTasks = todayTodos.filter(todo => isTaskUrgent(todo));
+    
+    if (urgentTasks.length > 0) {
+        showVideoPopup();
+    }
+}
+
+// 모든 일정을 체크하는 함수 (자동 체크용)
+function checkAllUpcomingTasks() {
+    if (!todoItems || todoItems.length === 0) return;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // 오늘 할 일 필터링
+    const todayTodos = todoItems.filter(todo => {
+        if (!todo.dateObj) return false;
+        const todoDate = new Date(todo.dateObj);
+        todoDate.setHours(0, 0, 0, 0);
+        return todoDate.getTime() === today.getTime();
+    });
+    
+    checkUpcomingTasks(todayTodos);
+}
+
+// 일정이 긴급한지 확인하는 함수 (30분 미만)
+function isTaskUrgent(todo) {
+    if (!todo.timeObj) return false;
+    
+    const now = new Date();
+    const taskTime = new Date(todo.dateObj);
+    taskTime.setHours(todo.timeObj.getHours(), todo.timeObj.getMinutes(), 0, 0);
+    
+    const timeDiff = taskTime - now;
+    const minutesDiff = timeDiff / (1000 * 60);
+    
+    // 30분 미만으로 남았고, 아직 지나지 않은 일정
+    return minutesDiff <= 30 && minutesDiff >= 0;
+}
+
+// 영상 팝업 표시 함수
+function showVideoPopup() {
+    // 이미 팝업이 표시되어 있으면 중복 실행 방지
+    if (document.getElementById('video-popup')) return;
+    
+    const popup = document.createElement('div');
+    popup.id = 'video-popup';
+    popup.className = 'video-popup-overlay';
+    
+    popup.innerHTML = `
+        <div class="video-popup-content">
+            <div class="video-popup-header">
+                <h3>⏰ 곧 시작할 일정이 있습니다!</h3>
+                <button class="video-popup-close" onclick="closeVideoPopup()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="video-popup-body">
+                <video id="hiphop-camel-video" autoplay muted loop>
+                    <source src="힙합낙타.mp4" type="video/mp4">
+                    브라우저가 비디오를 지원하지 않습니다.
+                </video>
+                <p class="video-popup-message">30분 미만으로 남은 일정이 있습니다. 준비해주세요!</p>
+                <div class="video-popup-timer">
+                    <span id="popup-timer">5:00</span> 후 자동으로 닫힙니다
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // 5분(300초) 타이머 시작
+    startPopupTimer();
+}
+
+// 팝업 타이머 변수
+let popupTimerInterval = null;
+
+// 팝업 타이머 시작 함수
+function startPopupTimer() {
+    let timeLeft = 300; // 5분 = 300초
+    
+    const updateTimer = () => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        const timerElement = document.getElementById('popup-timer');
+        
+        if (timerElement) {
+            timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        if (timeLeft <= 0) {
+            closeVideoPopup();
+            return;
+        }
+        
+        timeLeft--;
+    };
+    
+    // 즉시 한 번 실행
+    updateTimer();
+    
+    // 1초마다 업데이트
+    popupTimerInterval = setInterval(updateTimer, 1000);
+}
+
+// 영상 팝업 닫기 함수
+function closeVideoPopup() {
+    const popup = document.getElementById('video-popup');
+    if (popup) {
+        const video = document.getElementById('hiphop-camel-video');
+        if (video) {
+            video.pause();
+        }
+        
+        // 타이머 정리
+        if (popupTimerInterval) {
+            clearInterval(popupTimerInterval);
+            popupTimerInterval = null;
+        }
+        
+        popup.remove();
+    }
+}
+
 // CSS 애니메이션 추가
 const style = document.createElement('style');
 style.textContent = `
@@ -1230,6 +1435,157 @@ style.textContent = `
         to {
             transform: translateX(100%);
             opacity: 0;
+        }
+    }
+    
+    /* 영상 팝업 스타일 */
+    .video-popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    .video-popup-content {
+        background-color: hsl(var(--card));
+        border-radius: calc(var(--radius) + 0.5rem);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        border: 1px solid hsl(var(--border));
+        max-width: 600px;
+        width: 90%;
+        overflow: hidden;
+        animation: popupSlideIn 0.3s ease-out;
+    }
+    
+    .video-popup-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem;
+        border-bottom: 1px solid hsl(var(--border));
+        background-color: hsl(var(--muted) / 0.3);
+    }
+    
+    .video-popup-header h3 {
+        margin: 0;
+        color: hsl(var(--foreground));
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+    
+    .video-popup-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background-color: transparent;
+        border: none;
+        color: hsl(var(--muted-foreground));
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .video-popup-close:hover {
+        background-color: hsl(var(--muted));
+        color: hsl(var(--foreground));
+    }
+    
+    .video-popup-body {
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .video-popup-body video {
+        width: 100%;
+        max-width: 400px;
+        height: auto;
+        border-radius: var(--radius);
+        margin-bottom: 1rem;
+    }
+    
+    .video-popup-message {
+        margin: 0 0 1rem 0;
+        color: hsl(var(--foreground));
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    
+    .video-popup-timer {
+        background-color: hsl(var(--muted) / 0.3);
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius);
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        color: hsl(var(--muted-foreground));
+        text-align: center;
+    }
+    
+    .video-popup-timer #popup-timer {
+        font-weight: 600;
+        color: hsl(var(--primary));
+        font-size: 1.1rem;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes popupSlideIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9) translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+    
+    /* 긴급한 할 일 스타일 */
+    .todo-item.urgent {
+        border-left: 4px solid hsl(0 84.2% 60.2%);
+        background-color: hsl(0 84.2% 60.2% / 0.1);
+        animation: urgentTodoPulse 2s ease-in-out infinite;
+    }
+    
+    .todo-time {
+        font-size: 0.8rem;
+        color: hsl(var(--muted-foreground));
+        margin-top: 0.25rem;
+        font-weight: 500;
+    }
+    
+    .todo-item.urgent .todo-time {
+        color: hsl(0 84.2% 60.2%);
+        font-weight: 600;
+    }
+    
+    @keyframes urgentTodoPulse {
+        0% {
+            background-color: hsl(0 84.2% 60.2% / 0.1);
+            box-shadow: 0 0 0 0 hsl(0 84.2% 60.2% / 0.4);
+        }
+        50% {
+            background-color: hsl(0 84.2% 60.2% / 0.2);
+            box-shadow: 0 0 0 5px hsl(0 84.2% 60.2% / 0.2);
+        }
+        100% {
+            background-color: hsl(0 84.2% 60.2% / 0.1);
+            box-shadow: 0 0 0 0 hsl(0 84.2% 60.2% / 0.4);
         }
     }
 `;
