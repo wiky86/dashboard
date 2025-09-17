@@ -1458,8 +1458,8 @@ style.textContent = `
         border-radius: calc(var(--radius) + 0.5rem);
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         border: 1px solid hsl(var(--border));
-        max-width: 600px;
-        width: 90%;
+        max-width: 800px;
+        width: 95%;
         overflow: hidden;
         animation: popupSlideIn 0.3s ease-out;
     }
@@ -1506,7 +1506,7 @@ style.textContent = `
     
     .video-popup-body video {
         width: 100%;
-        max-width: 400px;
+        max-width: 600px;
         height: auto;
         border-radius: var(--radius);
         margin-bottom: 1rem;
